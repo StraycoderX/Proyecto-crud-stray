@@ -1,6 +1,8 @@
 import http.server
 import json
 from urllib.parse import urlparse
+import tkinter as tk
+from tkinter import simpledialog, messagebox, scrolledtext
 
 # Nombre del archivo JSON donde se almacenará la información de los empleados
 archivo_empleados = 'empleados.json'
@@ -23,20 +25,16 @@ def guardar_empleados(empleados):
 empleados = cargar_empleados()
 
 class SimpleHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
-    
+
     def do_GET(self):
         parsed_path = urlparse(self.path)
         path = parsed_path.path
-        
+
         if path == '/empleados':
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
-            
-            # Agregar el identificador único a cada empleado en la lista
-            empleados_con_id = [{'id': i, **empleado} for i, empleado in enumerate(empleados)]
-            
-            self.wfile.write(json.dumps(empleados_con_id).encode())
+            self.wfile.write(json.dumps(empleados).encode())
         elif path.startswith('/empleados/'):
             index = int(path.split('/')[2])
             if index >= 0 and index < len(empleados):
@@ -105,15 +103,75 @@ class SimpleHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
 # Función para iniciar el servidor con seguridad
 def iniciar_servidor():
     print("Bienvenido al servidor de empleados")
-    print("Por favor, inicie sesión para continuar.")
-    while True:
-        usuario = input("Usuario: ")
-        contraseña = input("Contraseña: ")
-        if usuario == 'admin' and contraseña == 'Luca6grande':
-            print("Inicio de sesión exitoso.")
-            break
-        else:
-            print("Credenciales incorrectas. Inténtelo de nuevo.")
+
+    # Función para manejar el inicio de sesión
+    def iniciar_sesion():
+        while True:
+            usuario = simpledialog.askstring("Iniciar Sesión", "Usuario:")
+            contraseña = simpledialog.askstring("Iniciar Sesión", "Contraseña:")
+            if usuario == 'admin' and contraseña == 'Luca6grande':
+                print("Inicio de sesión exitoso.")
+                abrir_ventana_principal()
+                break
+            else:
+                messagebox.showerror("Error", "Credenciales incorrectas. Inténtelo de nuevo.")
+
+    # Función para abrir la ventana principal después de iniciar sesión
+    def abrir_ventana_principal():
+        root = tk.Tk()
+        root.title("Gestión de Empleados")
+
+        # Funciones para los botones
+        def agregar_empleado():
+            nombre = simpledialog.askstring("Agregar Empleado", "Nombre:")
+            rol = simpledialog.askstring("Agregar Empleado", "Rol:")
+            compania = simpledialog.askstring("Agregar Empleado", "Compañía:")
+            nuevo_empleado = {'nombre': nombre, 'rol': rol, 'compania': compania}
+            empleados.append(nuevo_empleado)
+            guardar_empleados(empleados)
+            messagebox.showinfo("Empleado Agregado", "Empleado agregado correctamente.")
+
+        def modificar_empleado():
+            indice = simpledialog.askinteger("Modificar Empleado", "Índice del empleado a modificar:")
+            if indice is not None and 0 <= indice < len(empleados):
+                nuevo_rol = simpledialog.askstring("Modificar Empleado", "Nuevo Rol:")
+                empleados[indice]['rol'] = nuevo_rol
+                guardar_empleados(empleados)
+                messagebox.showinfo("Empleado Modificado", "Rol del empleado actualizado correctamente.")
+            else:
+                messagebox.showerror("Error", "Índice de empleado no válido.")
+
+        def eliminar_empleado():
+            indice = simpledialog.askinteger("Eliminar Empleado", "Índice del empleado a eliminar:")
+            if indice is not None and 0 <= indice < len(empleados):
+                del empleados[indice]
+                guardar_empleados(empleados)
+                messagebox.showinfo("Empleado Eliminado", "Empleado eliminado correctamente.")
+            else:
+                messagebox.showerror("Error", "Índice de empleado no válido.")
+
+        def ver_empleados():
+            ventana_empleados = tk.Toplevel(root)
+            ventana_empleados.title("Lista de Empleados")
+            txt_empleados = scrolledtext.ScrolledText(ventana_empleados, width=50, height=10)
+            txt_empleados.pack(expand=True, fill='both')
+            empleados_str = '\n'.join([f"Nombre: {empleado['nombre']}, Rol: {empleado['rol']}, Compañía: {empleado['compania']}" for empleado in empleados])
+            txt_empleados.insert(tk.END, empleados_str)
+
+        # Botones en la ventana principal
+        btn_agregar = tk.Button(root, text="Agregar Empleado", command=agregar_empleado)
+        btn_agregar.pack(pady=5)
+        btn_modificar = tk.Button(root, text="Modificar Empleado", command=modificar_empleado)
+        btn_modificar.pack(pady=5)
+        btn_eliminar = tk.Button(root, text="Eliminar Empleado", command=eliminar_empleado)
+        btn_eliminar.pack(pady=5)
+        btn_ver = tk.Button(root, text="Ver Empleados", command=ver_empleados)
+        btn_ver.pack(pady=5)
+
+        root.mainloop()
+
+    # Iniciar sesión al abrir el servidor
+    iniciar_sesion()
 
     print("\nIniciando el servidor...")
     http.server.HTTPServer(('localhost', 8000), SimpleHTTPRequestHandler).serve_forever()
